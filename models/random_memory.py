@@ -8,7 +8,7 @@ class RandomMemory:
     RMsize = 0
     n_saved_classes = 0
 
-    def __init__(self, patterns_shape, rmsize=1500):
+    def __init__(self, patterns_shape=(0, 0), rmsize=1500):
         self.RMsize = rmsize
         self.patterns_shape = patterns_shape
         self.memory = {'activations': torch.zeros((self.RMsize, *patterns_shape)),
@@ -26,6 +26,9 @@ class RandomMemory:
 
     def getMemory(self):
         return self.memory
+
+    def getsize(self):
+        return self.RMsize
 
 if __name__ == '__main__':
     rm = RandomMemory((10, 10, 10))
