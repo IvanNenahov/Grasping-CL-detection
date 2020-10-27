@@ -356,7 +356,7 @@ def freeze_up_to(model, freeze_below_layer, only_conv=False):
             print("Freezing parameter " + name)
 
         if name == freeze_below_layer:
-            print(f'last layer {name}')
+            #print(f'last layer {name}')
             break
 
 

@@ -22,7 +22,7 @@ from utils import *
 import copy
 from data_loader import CORE50
 import time
-from tqdm import tqdm
+from tqdm.auto import tqdm
 
 try:
     from pytorchcv.models.mobilenet import DwsConvBlock
@@ -123,12 +123,9 @@ class MobileNetWLR(nn.Module):
 
 def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_features.19.bn.beta",
                 init_lr=0.0005, momentum=0.9, l2=0.0005,
-                batch_size=128, use_cuda=True
-                ):
+                batch_size=128, use_cuda=True):
 
     # need to explicitly move model to cuda out of the function
-
-
 
     tot_it_step = 0
 
@@ -168,7 +165,7 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
 
         activations_to_save = torch.Tensor()
 
-        for it in range(it_x_epoch):
+        for it in tqdm(range(it_x_epoch // 8)):
             start = it * (batch_size)
             end = (it + 1) * (batch_size)
 
@@ -183,6 +180,11 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
                 x_batch, latent_input=lat_mb_x, return_lat_acts=True)
 
             lat_acts = lat_acts.cpu().detach()
+
+            if not model.trained and i == 0:
+                print(f'Random memory shape: {lat_acts.shape}')
+                model.RM = random_memory.RandomMemory(patterns_shape=lat_acts.shape)
+
             if it == 0:
                 cur_acts = copy.deepcopy(lat_acts)
             else:
@@ -219,12 +221,12 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
 
         test_x, test_y = dataset.get_test_set()
         ave_loss, acc, accs = get_accuracy(
-            model, criterion, batch_size, test_x, test_y, preproc=preprocess_imgs
-        )
+            model, criterion, batch_size, test_x, test_y, preproc=preprocess_imgs)
         print("---------------------------------")
         print("Accuracy: ", acc)
         print("---------------------------------")
 
+        model.trained = True
 
 if __name__ == "__main__":
 
@@ -232,7 +234,7 @@ if __name__ == "__main__":
 
     dataset = CORE50(root='G:\projects\core50\core50_128x128', scenario="nicv2_391")
     device = torch.device("cuda:0")
-    model.to(device)
+    #model.to(device)
     do_initial_training(model, dataset)
 
 
