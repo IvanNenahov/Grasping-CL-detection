@@ -120,7 +120,7 @@ class MobileNetWLR(nn.Module):
         #self.randomMemory = random_memory.RandomMemory(lat_list[-1].si)
 
 
-def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_features.19.bn.beta",
+def do_initial_training(model, dataset, freeze_below_layer="lat_features.19.bn.beta",
                 init_lr=0.0005, momentum=0.9, l2=0.0005,
                 batch_size=128, use_cuda=True, epochs=10):
 
@@ -175,7 +175,7 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
         print("it x ep: ", it_x_epoch)
         correct_cnt, ave_loss = 0, 0
 
-        for it in tqdm(range(it_x_epoch)):
+        for it in range(it_x_epoch):
             start = it * (batch_size)
             end = (it + 1) * (batch_size)
 
@@ -201,7 +201,7 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
                 cur_acts = torch.cat((cur_acts, lat_acts), 0)
 
             _, pred_label = torch.max(logits, 1)
-            correct_cnt += (pred_label == y_batch).sum()
+            correct_cnt = (pred_label == y_batch).sum()
             #print(correct_cnt)
 
             loss = criterion(logits, y_batch)
@@ -211,8 +211,7 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
             loss.backward()
             optimizer.step()
 
-            acc = correct_cnt.item() / \
-                  ((it + 1) * y_batch.size(0))
+            acc = correct_cnt.item() / batch_size
             ave_loss /= ((it + 1) * y_batch.size(0))
 
             #if it % 5 == 0:
@@ -245,7 +244,8 @@ if __name__ == "__main__":
 
     dataset = CORE50(root='G:\projects\core50\core50_128x128', scenario="nicv2_391")
     device = torch.device("cuda:0")
-    #model.to(device)
+    model.to(device)
+
     do_initial_training(model, dataset)
 
 

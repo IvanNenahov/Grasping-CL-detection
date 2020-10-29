@@ -225,7 +225,7 @@ for i, train_batch in enumerate(dataset):
             _, pred_label = torch.max(logits, 1)
 
             correct_cnt += (pred_label == y_mb).sum()
-            print(correct_cnt)
+            # print(correct_cnt)
 
             loss = criterion(logits, y_mb)
             if reg_lambda !=0:
@@ -264,13 +264,16 @@ for i, train_batch in enumerate(dataset):
         for c, n in model.cur_j.items():
             model.past_j[c] += n
 
+        writer.add_scalar('test_loss', ave_loss, i)
+        writer.add_scalar('test_accuracy', acc, i)
+
         print("---------------------------------")
         print("Accuracy: ", acc)
         print("---------------------------------")
 ############################################
         cur_ep += 1
 
-    #consolidate_weights(model, cur_class)
+    consolidate_weights(model, cur_class)
     if reg_lambda != 0:
         update_ewc_data(model, ewcData, synData, 0.001, 1)
 
@@ -296,7 +299,7 @@ for i, train_batch in enumerate(dataset):
             rm[0][idx] = copy.deepcopy(rm_add[0][j])
             rm[1][idx] = copy.deepcopy(rm_add[1][j])
 
-    #set_consolidate_weights(model)
+    set_consolidate_weights(model)
     ave_loss, acc, accs = get_accuracy(
         model, criterion, mb_size, test_x, test_y, preproc=preproc
     )
