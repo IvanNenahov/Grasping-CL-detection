@@ -84,7 +84,7 @@ tot_it_step = 0
 rm = None
 
 # Create the dataset object
-dataset = CORE50(root='/home/admin/ssd_data/core50', scenario="nicv2_391")
+dataset = CORE50(root='G:\projects\core50\core50_128x128', scenario="nicv2_391")
 preproc = preprocess_imgs
 
 # Get the fixed test set
@@ -223,7 +223,9 @@ for i, train_batch in enumerate(dataset):
                     cur_acts = torch.cat((cur_acts, lat_acts), 0)
 
             _, pred_label = torch.max(logits, 1)
+
             correct_cnt += (pred_label == y_mb).sum()
+            print(correct_cnt)
 
             loss = criterion(logits, y_mb)
             if reg_lambda !=0:
@@ -240,11 +242,11 @@ for i, train_batch in enumerate(dataset):
                   ((it + 1) * y_mb.size(0))
             ave_loss /= ((it + 1) * y_mb.size(0))
 
-            if it % 10 == 0:
-                print(
-                    '==>>> it: {}, avg. loss: {:.6f}, '
-                    'running train acc: {:.3f}'
-                        .format(it, ave_loss, acc)
+            #if it % 10 == 0:
+            print(
+                '==>>> it: {}, avg. loss: {:.6f}, '
+                'running train acc: {:.3f}'
+                    .format(it, ave_loss, acc)
                 )
 
             # Log scalar values (scalar summary) to TB
@@ -252,9 +254,23 @@ for i, train_batch in enumerate(dataset):
             writer.add_scalar('train_loss', ave_loss, tot_it_step)
             writer.add_scalar('train_accuracy', acc, tot_it_step)
 
+        #########################
+        ave_loss, acc, accs = get_accuracy(
+            model, criterion, mb_size, test_x, test_y, preproc=preproc
+        )
+
+
+        # update number examples encountered over time
+        for c, n in model.cur_j.items():
+            model.past_j[c] += n
+
+        print("---------------------------------")
+        print("Accuracy: ", acc)
+        print("---------------------------------")
+############################################
         cur_ep += 1
 
-    consolidate_weights(model, cur_class)
+    #consolidate_weights(model, cur_class)
     if reg_lambda != 0:
         update_ewc_data(model, ewcData, synData, 0.001, 1)
 
@@ -280,7 +296,7 @@ for i, train_batch in enumerate(dataset):
             rm[0][idx] = copy.deepcopy(rm_add[0][j])
             rm[1][idx] = copy.deepcopy(rm_add[1][j])
 
-    set_consolidate_weights(model)
+    #set_consolidate_weights(model)
     ave_loss, acc, accs = get_accuracy(
         model, criterion, mb_size, test_x, test_y, preproc=preproc
     )

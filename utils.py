@@ -345,15 +345,16 @@ def set_bn_to(m, name="", phase="train"):
 
 
 def freeze_up_to(model, freeze_below_layer, only_conv=False):
+    print(f'freezing parameters below the layer: {freeze_below_layer}')
     for name, param in model.named_parameters():
         # tells whether we want to use gradients for a given parameter
         if only_conv:
             if "conv" in name:
                 param.requires_grad = False
-                print("Freezing parameter " + name)
+                #print("Freezing parameter " + name)
         else:
             param.requires_grad = False
-            print("Freezing parameter " + name)
+            #print("Freezing parameter " + name)
 
         if name == freeze_below_layer:
             #print(f'last layer {name}')

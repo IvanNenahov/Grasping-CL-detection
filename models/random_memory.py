@@ -11,8 +11,8 @@ class RandomMemory:
     def __init__(self, patterns_shape=(0, 0, 0), rmsize=1500):
         self.RMsize = rmsize
         self.patterns_shape = patterns_shape
-        self.memory = {'activations': torch.zeros((self.RMsize, *patterns_shape), dtype=torch.float16),
-                       'labels': None}
+        self.memory = {'activations': torch.zeros((self.RMsize, *patterns_shape[1:]), dtype=torch.float32),
+                       'labels': torch.zeros(self.RMsize, dtype=torch.long)}
 
     def addPatterns(self, patterns, labels):
         self.n_saved_classes += 1
@@ -21,6 +21,7 @@ class RandomMemory:
         add_id = np.random.choice(range(patterns.shape[0]), size=h)
         replace_id = np.random.choice(range(self.RMsize), size=h)
 
+        #print(self.memory['labels'])
         self.memory['activations'][replace_id] = copy.deepcopy(patterns[add_id])
         self.memory['labels'][replace_id] = copy.deepcopy(labels[add_id])
 

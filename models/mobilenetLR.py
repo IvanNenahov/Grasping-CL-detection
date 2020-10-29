@@ -57,7 +57,6 @@ def remove_DwsConvBlock(cur_layers):
 
 class MobileNetWLR(nn.Module):
 
-
     def __init__(self, pretrained=True, latent_layer_num=20, random_memory_size=1500, replace_bn=True,
                  init_update_rate=0.01, inc_update_rate=0.00005, max_r_max=1.25, max_d_max=0.5,
                  inc_step=4.1e-05):
@@ -123,7 +122,7 @@ class MobileNetWLR(nn.Module):
 
 def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_features.19.bn.beta",
                 init_lr=0.0005, momentum=0.9, l2=0.0005,
-                batch_size=128, use_cuda=True):
+                batch_size=128, use_cuda=True, epochs=10):
 
     # need to explicitly move model to cuda out of the function
 
@@ -134,55 +133,66 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
     optimizer = torch.optim.SGD(model.parameters(), lr=init_lr, momentum=momentum, weight_decay=l2)
     criterion = torch.nn.CrossEntropyLoss()
 
-    correct_cnt, ave_loss = 0, 0
-    for i, train_batch in tqdm(enumerate(dataset)):
 
-        train_x, train_y = train_batch
-        train_x = preprocess_imgs(train_x)
 
-        cur_class = [int(o) for o in set(train_y)]
+    train_x, train_y = dataset.next()
+    train_x = preprocess_imgs(train_x)
 
-        print("----------- batch {0} -------------".format(i))
-        print("train_x shape: {}, train_y shape: {}"
-              .format(train_x.shape, train_y.shape))
+    cur_class = [int(o) for o in set(train_y)]
 
-        model.train()
-        model.lat_features.eval()
+   # print("----------- batch {0} -------------".format(i))
+    print("train_x shape: {}, train_y shape: {}"
+          .format(train_x.shape, train_y.shape))
 
-        # What is the purpose of function below???
-        # reset_weights(model, cur_class)
+    cur_class = [int(o) for o in set(train_y)]
+    model.cur_j = examples_per_class(train_y)
 
-        (train_x, train_y), it_x_epoch = pad_data([train_x, train_y], batch_size)
-        shuffle_in_unison([train_x, train_y], in_place=True)
+    model.train()
+    model.lat_features.eval()
 
-        #model = maybe_cuda(model, use_cuda=use_cuda)
+    # What is the purpose of function below???
+    reset_weights(model, cur_class)
 
-        acc = None
-        ave_loss = 0
+    (train_x, train_y), it_x_epoch = pad_data([train_x, train_y], batch_size)
+    shuffle_in_unison([train_x, train_y], in_place=True)
 
-        train_x = torch.from_numpy(train_x).type(torch.FloatTensor)
-        train_y = torch.from_numpy(train_y).type(torch.LongTensor)
+    #model = maybe_cuda(model, use_cuda=use_cuda)
 
-        activations_to_save = torch.Tensor()
+    acc = None
+    ave_loss = 0
 
-        for it in tqdm(range(it_x_epoch // 8)):
+    train_x = torch.from_numpy(train_x).type(torch.FloatTensor)
+    train_y = torch.from_numpy(train_y).type(torch.LongTensor)
+
+    #activations_to_save = torch.Tensor()
+
+    test_x, test_y = dataset.get_test_set()
+
+    for epoch in range(epochs):
+        print("----------- epoch {0} -------------".format(epoch))
+        #print("total sz:", train_x.size(0) + rm_sz)
+        #print("n2inject", n2inject)
+        print("it x ep: ", it_x_epoch)
+        correct_cnt, ave_loss = 0, 0
+
+        for it in tqdm(range(it_x_epoch)):
             start = it * (batch_size)
             end = (it + 1) * (batch_size)
 
             optimizer.zero_grad()
 
-            x_batch = maybe_cuda(train_x[start:end], use_cuda=use_cuda)
+            x_batch = maybe_cuda(train_x[start:end])
 
             lat_mb_x = None
-            y_batch = maybe_cuda(train_y[start:end], use_cuda=use_cuda)
+            y_batch = maybe_cuda(train_y[start:end])
 
             logits, lat_acts = model(
                 x_batch, latent_input=lat_mb_x, return_lat_acts=True)
 
             lat_acts = lat_acts.cpu().detach()
 
-            if not model.trained and i == 0:
-                print(f'Random memory shape: {lat_acts.shape}')
+            if not model.trained:
+                #print(f'Random memory shape: {lat_acts.shape}')
                 model.RM = random_memory.RandomMemory(patterns_shape=lat_acts.shape)
 
             if it == 0:
@@ -192,6 +202,7 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
 
             _, pred_label = torch.max(logits, 1)
             correct_cnt += (pred_label == y_batch).sum()
+            #print(correct_cnt)
 
             loss = criterion(logits, y_batch)
 
@@ -204,29 +215,29 @@ def do_initial_training(model: MobileNetWLR, dataset, freeze_below_layer="lat_fe
                   ((it + 1) * y_batch.size(0))
             ave_loss /= ((it + 1) * y_batch.size(0))
 
-            if it % 10 == 0:
-                print(
-                    '==>>> it: {}, avg. loss: {:.6f}, '
-                    'running train acc: {:.3f}'.format(it, ave_loss, acc)
-                )
+            #if it % 5 == 0:
+            print(
+                '==>>> it: {}, avg. loss: {:.6f}, '
+                'running train acc: {:.3f}'.format(it, ave_loss, acc)
+            )
 
             tot_it_step += 1
 
-        consolidate_weights(model, cur_class)
+            #consolidate_weights(model, cur_class)
 
-        set_consolidate_weights(model)
+            #set_consolidate_weights(model)
 
-        #replace patterns in random memory
+            #replace patterns in random memory
         model.RM.addPatterns(cur_acts, train_y)
 
-        test_x, test_y = dataset.get_test_set()
+
         ave_loss, acc, accs = get_accuracy(
             model, criterion, batch_size, test_x, test_y, preproc=preprocess_imgs)
         print("---------------------------------")
         print("Accuracy: ", acc)
         print("---------------------------------")
 
-        model.trained = True
+    model.trained = True
 
 if __name__ == "__main__":
 
