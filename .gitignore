@@ -4,3 +4,4 @@ __pycache__/
 /data
 /logs
 *.bin
+/core50_128x128

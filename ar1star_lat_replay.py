@@ -31,6 +31,7 @@ import argparse
 from pprint import pprint
 from torch.utils.tensorboard import SummaryWriter
 
+
 # --------------------------------- Setup --------------------------------------
 
 # recover exp configuration name
@@ -84,7 +85,7 @@ tot_it_step = 0
 rm = None
 
 # Create the dataset object
-dataset = CORE50(root='G:\projects\core50\core50_128x128', scenario="nicv2_391")
+dataset = CORE50(root='core50_128x128', scenario="nicv2_391")
 preproc = preprocess_imgs
 
 # Get the fixed test set
