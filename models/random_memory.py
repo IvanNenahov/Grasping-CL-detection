@@ -6,7 +6,7 @@ import copy
 
 class RandomMemory:
     RMsize = 0
-    n_saved_classes = 0
+    n_saved_batches = 0
 
     def __init__(self, patterns_shape=(0, 0, 0), rmsize=1500):
         self.RMsize = rmsize
@@ -14,21 +14,14 @@ class RandomMemory:
         self.memory = {'activations': torch.zeros((self.RMsize, *patterns_shape[1:]), dtype=torch.float32),
                        'labels': torch.zeros(self.RMsize, dtype=torch.long)}
 
-    def addPatterns(self, patterns, labels):
+    def addPatterns(self, patterns, labels, n_batches=1):
 
-        new_labels = set(torch.unique(labels).tolist())
-        if self.n_saved_classes > 1:
-            new_labels -= set(torch.unique(self.memory['labels']).tolist())
-
-
-        if self.n_saved_classes == 0:
+        if self.n_saved_batches == 0:
             h = self.RMsize
         else:
-            h = self.RMsize // self.n_saved_classes
+            h = self.RMsize // self.n_saved_batches
 
-        self.n_saved_classes += len(new_labels)
-
-
+        self.n_saved_batches += n_batches
 
         add_id = np.random.choice(range(patterns.shape[0]), size=h)
         replace_id = np.random.choice(range(self.RMsize), size=h)

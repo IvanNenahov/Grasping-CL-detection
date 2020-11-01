@@ -21,7 +21,6 @@ from models import random_memory
 from utils import *
 import copy
 from data_loader import CORE50
-from sklearn.model_selection import train_test_split
 
 try:
     from pytorchcv.models.mobilenet import DwsConvBlock
@@ -123,7 +122,7 @@ class MobileNetWLR(nn.Module):
 
     def train_on_data(self, dataset, freeze_below_layer="lat_features.19.bn.beta",
                             init_lr=0.0005, momentum=0.9, l2=0.0005,
-                            batch_size=128, use_cuda=True, epochs=1,
+                            batch_size=128, use_cuda=True, epochs=4,
                             reg_lambda=0):
 
         tot_it_step = 0
@@ -140,7 +139,7 @@ class MobileNetWLR(nn.Module):
 
         (train_x, train_y) = dataset
 
-        train_x, val_x, train_y, val_y = train_test_split(train_x, train_y, test_size=0.15, random_state=42)
+        #train_x, val_x, train_y, val_y = train_test_split(train_x, train_y, test_size=0.15, random_state=42)
 
         train_x = preprocess_imgs(train_x)
 
@@ -150,6 +149,9 @@ class MobileNetWLR(nn.Module):
         else:
             cur_class = [int(o) for o in set(train_y).union(set(self.RM.getLabels()))]
             self.cur_j = examples_per_class(list(train_y) + list(self.RM.getLabels()))
+
+        # need to add patterns to RM
+        n_classes = len(set(train_y))
 
         # print("----------- batch {0} -------------".format(i))
         print("train_x shape: {}, train_y shape: {}"
@@ -254,24 +256,24 @@ class MobileNetWLR(nn.Module):
 
                 tot_it_step += 1
 
-            ave_loss, acc, accs = get_accuracy(
-                self, criterion, batch_size, val_x, val_y, preproc=preprocess_imgs)
-            print("---------------------------------")
-            print("Accuracy: ", acc)
-            print("---------------------------------")
+            #ave_loss, acc, accs = get_accuracy(
+            #    self, criterion, batch_size, val_x, val_y, preproc=preprocess_imgs)
+            #print("---------------------------------")
+            #print("Accuracy: ", acc)
+            #print("---------------------------------")
 
             # update number examples encountered over time
             for c, n in self.cur_j.items():
                 self.past_j[c] += n
 
+        # use EWC strategy
         consolidate_weights(self, cur_class)
         if reg_lambda != 0:
             update_ewc_data(self, self.ewcData, self.synData, 0.001, 1)
-
         set_consolidate_weights(self)
 
         # replace patterns in random memory
-        self.RM.addPatterns(cur_acts, train_y)
+        self.RM.addPatterns(cur_acts, train_y, n_batches=n_classes)
 
         # update number examples encountered over time
         for c, n in self.cur_j.items():
@@ -280,7 +282,7 @@ class MobileNetWLR(nn.Module):
         self.trained = True
 
 
-def main(root='../core50_128x128'):
+def main(root='G:/projects/core50/core50_128x128'):
     model = MobileNetWLR(pretrained=True)
 
     dataset = CORE50(root=root, scenario="nicv2_391")
@@ -288,6 +290,16 @@ def main(root='../core50_128x128'):
     model.to(device)
 
     model.train_on_data(dataset.next())
+
+    test_x, test_y = dataset.get_test_set()
+
+    ave_loss, acc, accs = get_accuracy(
+        model, torch.nn.CrossEntropyLoss(), 128, test_x, test_y, preproc=preprocess_imgs
+    )
+
+    print(f'test accuracy: {acc}')
+    for cl in accs:
+        print(cl)
 
 
 if __name__ == "__main__":
